@@ -77,20 +77,26 @@ Use VS Code with the provided launch configuration to debug the application (F5)
 
 ## Docker
 
-### Build and run with Docker Compose:
+### Build and run with Docker Compose (API + Frontend):
 ```bash
 docker-compose up --build
 ```
 
+This will start:
+- **API**: http://localhost:8000
+- **Monitoring Dashboard**: http://localhost:3000
+
 ### Or build and run manually:
 ```bash
-# Build the image
+# Build the API image
 docker build -t weasy-print-api .
 
-# Run the container
+# Run the API container
 docker run -d -p 8000:8000 --name weasy-print-api weasy-print-api
 ```
 
-### Access the API:
-- Swagger UI: http://localhost:8000/docs
-- Health check: http://localhost:8000/
+### Access the services:
+- **Monitoring Dashboard**: http://localhost:3000
+- **API Swagger UI**: http://localhost:8000/docs
+- **API Health check**: http://localhost:8000/
+- **API Metrics**: http://localhost:8000/metrics

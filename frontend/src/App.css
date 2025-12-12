@@ -1,0 +1,262 @@
+.App {
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.App-header {
+  text-align: center;
+  color: white;
+  margin-bottom: 40px;
+}
+
+.App-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.App-header p {
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+.connection-status {
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
+
+.status-indicator {
+  display: inline-block;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-weight: bold;
+}
+
+.status-indicator.connected {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  animation: pulse-green 2s infinite;
+}
+
+.status-indicator.disconnected {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.error-banner {
+  background: #ff4444;
+  color: white;
+  padding: 15px;
+  text-align: center;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.status-card {
+  grid-column: span 1;
+}
+
+.status-info {
+  margin-top: 20px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.status-badge.success {
+  background: #4caf50;
+  color: white;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: white;
+  margin-right: 8px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.status-message {
+  margin-top: 15px;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.metric-card h3 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+}
+
+.metric-value {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.metric-value .value {
+  display: block;
+  font-size: 3rem;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.metric-value .label {
+  display: block;
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 5px;
+}
+
+.metric-details {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 15px;
+  margin-top: 15px;
+}
+
+.metric-details p {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 5px 0;
+}
+
+.chart-card {
+  grid-column: span 2;
+}
+
+.chart-card h3 {
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.table-card {
+  grid-column: span 2;
+}
+
+.table-card h3 {
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.table-container {
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.request-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.request-table th {
+  background: #667eea;
+  color: white;
+  padding: 12px 8px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.request-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.request-table tbody tr:hover {
+  background: #f5f5f5;
+}
+
+.success-row {
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.failed-row {
+  background: rgba(244, 67, 54, 0.05);
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.status-badge.success {
+  background: #4caf50;
+  color: white;
+}
+
+.status-badge.failed {
+  background: #f44336;
+  color: white;
+}
+
+.loading {
+  text-align: center;
+  color: #999;
+  padding: 20px;
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card, .table-card {
+    grid-column: span 1;
+  }
+
+  .App-header h1 {
+    font-size: 2rem;
+  }
+
+  .request-table {
+    font-size: 0.75rem;
+  }
+
+  .request-table th,
+  .request-table td {
+    padding: 8px 4px;
+  }
+}

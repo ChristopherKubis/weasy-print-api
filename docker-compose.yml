@@ -15,3 +15,20 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - weasyprint-network
+
+  frontend:
+    build: ./frontend
+    container_name: weasyprint-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - weasy-print-api
+    restart: unless-stopped
+    networks:
+      - weasyprint-network
+
+networks:
+  weasyprint-network:
+    driver: bridge
