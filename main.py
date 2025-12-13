@@ -2,13 +2,21 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import weasyprint
 import psutil
 import io
 import json
 import asyncio
+import yaml
 from datetime import datetime
-from typing import List
+from typing import List, Optional
+import gc
+import os
+
+# Load configuration from config.yml
+with open("config.yml", "r") as f:
+    config = yaml.safe_load(f)
+
+# Don't import weasyprint at startup - lazy load when needed to save memory
 
 app = FastAPI(
     title="HTML to PDF API",
@@ -33,8 +41,100 @@ api_stats = {
     "start_time": datetime.now(),
 }
 
-# Request History (keep last 50 requests)
+# Request History - use config value
 request_history = []
+MAX_HISTORY = config["app"]["request_history_max"]
+
+# Container stats tracking
+container_stats = {
+    "network_io": {"rx_bytes": 0, "tx_bytes": 0},
+    "block_io": {"read_bytes": 0, "write_bytes": 0},
+}
+
+
+def get_container_stats():
+    """Get Docker container statistics similar to Docker Desktop"""
+    process = psutil.Process()
+
+    # CPU usage
+    cpu_percent = process.cpu_percent(interval=0.1)
+
+    # Memory usage (container-specific)
+    memory_info = process.memory_info()
+    memory_percent = (memory_info.rss / psutil.virtual_memory().total) * 100
+
+    # Memory limit from config.yml
+    memory_limit = (
+        config["resources"]["memory"]["limit_gb"] * 1024 * 1024 * 1024
+    )  # Convert GB to bytes
+    memory_usage_of_limit = (memory_info.rss / memory_limit) * 100
+
+    # Network I/O
+    net_io = psutil.net_io_counters()
+    net_rx_delta = net_io.bytes_recv - container_stats["network_io"]["rx_bytes"]
+    net_tx_delta = net_io.bytes_sent - container_stats["network_io"]["tx_bytes"]
+    container_stats["network_io"]["rx_bytes"] = net_io.bytes_recv
+    container_stats["network_io"]["tx_bytes"] = net_io.bytes_sent
+
+    # Disk I/O
+    disk_io = psutil.disk_io_counters()
+    if disk_io:
+        disk_read_delta = disk_io.read_bytes - container_stats["block_io"]["read_bytes"]
+        disk_write_delta = (
+            disk_io.write_bytes - container_stats["block_io"]["write_bytes"]
+        )
+        container_stats["block_io"]["read_bytes"] = disk_io.read_bytes
+        container_stats["block_io"]["write_bytes"] = disk_io.write_bytes
+    else:
+        disk_read_delta = 0
+        disk_write_delta = 0
+
+    # Number of threads (similar to Docker's PIDs)
+    num_threads = process.num_threads()
+
+    return {
+        "container_name": os.getenv("HOSTNAME", "weasyprint-api"),
+        "cpu": {
+            "percent": round(cpu_percent, 2),
+            "cores": psutil.cpu_count(),
+            "limit_cores": config["resources"]["cpu"]["limit_cores"],
+        },
+        "memory": {
+            "used_bytes": memory_info.rss,
+            "used_mb": round(memory_info.rss / (1024 * 1024), 2),
+            "limit_bytes": memory_limit,
+            "limit_gb": config["resources"]["memory"]["limit_gb"],
+            "percent_of_limit": round(memory_usage_of_limit, 2),
+            "percent_of_system": round(memory_percent, 2),
+        },
+        "network": {
+            "rx_bytes": net_io.bytes_recv,
+            "tx_bytes": net_io.bytes_sent,
+            "rx_mb": round(net_io.bytes_recv / (1024 * 1024), 2),
+            "tx_mb": round(net_io.bytes_sent / (1024 * 1024), 2),
+            "rx_delta_per_sec": round(
+                net_rx_delta / config["app"]["websocket_update_interval"], 2
+            ),  # Per second avg over configured interval
+            "tx_delta_per_sec": round(
+                net_tx_delta / config["app"]["websocket_update_interval"], 2
+            ),
+        },
+        "block_io": {
+            "read_bytes": disk_io.read_bytes if disk_io else 0,
+            "write_bytes": disk_io.write_bytes if disk_io else 0,
+            "read_mb": round((disk_io.read_bytes if disk_io else 0) / (1024 * 1024), 2),
+            "write_mb": round(
+                (disk_io.write_bytes if disk_io else 0) / (1024 * 1024), 2
+            ),
+            "read_delta_per_sec": round(
+                disk_read_delta / config["app"]["websocket_update_interval"], 2
+            ),
+            "write_delta_per_sec": round(
+                disk_write_delta / config["app"]["websocket_update_interval"], 2
+            ),
+        },
+        "pids": num_threads,
+    }
 
 
 # WebSocket connections manager
@@ -47,14 +147,20 @@ class ConnectionManager:
         self.active_connections.append(websocket)
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict):
+        disconnected = []
         for connection in self.active_connections:
             try:
                 await connection.send_json(message)
             except:
-                pass
+                disconnected.append(connection)
+
+        # Remove disconnected clients
+        for conn in disconnected:
+            self.disconnect(conn)
 
 
 manager = ConnectionManager()
@@ -79,24 +185,24 @@ async def root():
     return {"message": "HTML to PDF API is running", "status": "healthy"}
 
 
+@app.get("/config", tags=["Configuration"])
+async def get_config():
+    """
+    Get current resource configuration
+    """
+    return config
+
+
 @app.get("/metrics", tags=["Monitoring"])
 async def get_metrics():
     """
-    Get system metrics and API statistics
+    Get Docker container metrics and API statistics (similar to Docker Desktop)
     """
-    cpu_percent = psutil.cpu_percent(interval=0.1)
-    memory = psutil.virtual_memory()
-
+    container_info = get_container_stats()
     uptime = datetime.now() - api_stats["start_time"]
 
     return {
-        "cpu": {"percent": cpu_percent, "count": psutil.cpu_count()},
-        "memory": {
-            "total": memory.total,
-            "available": memory.available,
-            "used": memory.used,
-            "percent": memory.percent,
-        },
+        "container": container_info,
         "api": {
             "total_requests": api_stats["total_requests"],
             "successful_conversions": api_stats["successful_conversions"],
@@ -120,23 +226,18 @@ async def websocket_endpoint(websocket: WebSocket):
     WebSocket endpoint for real-time monitoring updates
     """
     await manager.connect(websocket)
+    update_interval = config["app"]["websocket_update_interval"]
+
     try:
         while True:
-            # Send metrics every 2 seconds
-            cpu_percent = psutil.cpu_percent(interval=0.1)
-            memory = psutil.virtual_memory()
+            # Send container metrics using configured interval
+            container_info = get_container_stats()
             uptime = datetime.now() - api_stats["start_time"]
 
             data = {
                 "type": "metrics",
                 "data": {
-                    "cpu": {"percent": cpu_percent, "count": psutil.cpu_count()},
-                    "memory": {
-                        "total": memory.total,
-                        "available": memory.available,
-                        "used": memory.used,
-                        "percent": memory.percent,
-                    },
+                    "container": container_info,
                     "api": {
                         "total_requests": api_stats["total_requests"],
                         "successful_conversions": api_stats["successful_conversions"],
@@ -147,7 +248,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 },
             }
             await websocket.send_json(data)
-            await asyncio.sleep(2)
+            await asyncio.sleep(update_interval)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
@@ -171,9 +272,16 @@ async def convert_html_to_pdf(request: HTMLRequest):
     process_memory_before = process.memory_info().rss
 
     try:
+        # Lazy load WeasyPrint only when needed to save memory
+        import weasyprint
+
         # Convert HTML to PDF using WeasyPrint
         html_doc = weasyprint.HTML(string=request.html)
         pdf_bytes = html_doc.write_pdf()
+
+        # Force garbage collection to free memory
+        del html_doc
+        gc.collect()
 
         # Record final resource usage
         end_time = datetime.now()
@@ -198,8 +306,8 @@ async def convert_html_to_pdf(request: HTMLRequest):
         }
 
         request_history.append(request_info)
-        # Keep only last 50 requests
-        if len(request_history) > 50:
+        # Keep only last 20 requests (reduced from 50)
+        if len(request_history) > MAX_HISTORY:
             request_history.pop(0)
 
         api_stats["successful_conversions"] += 1
@@ -231,7 +339,7 @@ async def convert_html_to_pdf(request: HTMLRequest):
         }
 
         request_history.append(request_info)
-        if len(request_history) > 50:
+        if len(request_history) > MAX_HISTORY:
             request_history.pop(0)
 
         api_stats["failed_conversions"] += 1

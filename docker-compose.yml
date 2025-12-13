@@ -1,11 +1,13 @@
 version: '3.8'
 
 services:
-  weasy-print-api:
+  weasyprint-api:
     build: .
-    container_name: weasy-print-api
+    container_name: weasyprint-api
     ports:
       - "8000:8000"
+    volumes:
+      - ./config.yml:/app/config.yml:ro
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
@@ -15,6 +17,18 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    mem_limit: 2g
+    mem_reservation: 512m
+    cpus: '2.0'
+    cpu_shares: 1024
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2g
+        reservations:
+          cpus: '0.5'
+          memory: 512m
     networks:
       - weasyprint-network
 
@@ -24,8 +38,18 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - weasy-print-api
+      - weasyprint-api
     restart: unless-stopped
+    mem_limit: 512m
+    cpus: '1.0'
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512m
+        reservations:
+          cpus: '0.25'
+          memory: 128m
     networks:
       - weasyprint-network
 

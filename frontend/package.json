@@ -34,5 +34,5 @@
   "devDependencies": {
     "react-scripts": "5.0.1"
   },
-  "proxy": "http://weasy-print-api:8000"
+  "proxy": "http://weasyprint-api:8000"
 }

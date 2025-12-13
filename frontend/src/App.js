@@ -8,6 +8,8 @@ function App() {
   const [health, setHealth] = useState(null);
   const [cpuHistory, setCpuHistory] = useState([]);
   const [memoryHistory, setMemoryHistory] = useState([]);
+  const [networkHistory, setNetworkHistory] = useState([]);
+  const [diskHistory, setDiskHistory] = useState([]);
   const [requestHistory, setRequestHistory] = useState([]);
   const [error, setError] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('Connecting...');
@@ -49,18 +51,28 @@ function App() {
         const message = JSON.parse(event.data);
         
         if (message.type === 'metrics') {
-          // Update metrics
+          // Update metrics with container stats
           setMetrics(message.data);
           
-          // Update charts
+          // Update charts with container-specific metrics
           const timestamp = new Date().toLocaleTimeString();
           setCpuHistory(prev => [...prev.slice(-19), { 
             time: timestamp, 
-            cpu: message.data.cpu.percent 
+            cpu: message.data.container.cpu.percent 
           }]);
           setMemoryHistory(prev => [...prev.slice(-19), { 
             time: timestamp, 
-            memory: message.data.memory.percent 
+            memory: message.data.container.memory.percent_of_limit 
+          }]);
+          setNetworkHistory(prev => [...prev.slice(-19), {
+            time: timestamp,
+            rx: message.data.container.network.rx_delta_per_sec,
+            tx: message.data.container.network.tx_delta_per_sec
+          }]);
+          setDiskHistory(prev => [...prev.slice(-19), {
+            time: timestamp,
+            read: message.data.container.block_io.read_delta_per_sec,
+            write: message.data.container.block_io.write_delta_per_sec
           }]);
         } else if (message.type === 'new_request') {
           // Add new request to history
@@ -135,32 +147,135 @@ function App() {
           )}
         </div>
 
-        {/* System Metrics Cards */}
-        {metrics && (
+        {/* Docker Container Metrics with Charts */}
+        {metrics && metrics.container && (
           <>
-            <div className="card metric-card">
-              <h3>CPU Usage</h3>
-              <div className="metric-value">
-                <span className="value">{metrics.cpu.percent.toFixed(1)}%</span>
+            <div className="card chart-card">
+              <h3>🐳 Container CPU Usage - {metrics.container.container_name}</h3>
+              <div className="current-value">
+                <span className="value-inline">{metrics.container.cpu.percent}%</span>
+                <span className="label-inline">Current | Cores: {metrics.container.cpu.limit_cores} | PIDs: {metrics.container.pids}</span>
               </div>
-              <div className="metric-details">
-                <p>Cores: {metrics.cpu.count}</p>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={cpuHistory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                  <XAxis dataKey="time" stroke="#666" />
+                  <YAxis stroke="#666" domain={[0, 100]} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e0e0e0' }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="cpu" 
+                    stroke="#667eea" 
+                    strokeWidth={2}
+                    dot={false}
+                    name="CPU %"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="card chart-card">
+              <h3>💾 Container Memory Usage</h3>
+              <div className="current-value">
+                <span className="value-inline">{metrics.container.memory.percent_of_limit.toFixed(1)}%</span>
+                <span className="label-inline">of {metrics.container.memory.limit_gb}GB limit | Used: {metrics.container.memory.used_mb} MB</span>
               </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={memoryHistory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                  <XAxis dataKey="time" stroke="#666" />
+                  <YAxis stroke="#666" domain={[0, 100]} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e0e0e0' }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="memory" 
+                    stroke="#764ba2" 
+                    strokeWidth={2}
+                    dot={false}
+                    name="Memory %"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="card chart-card">
+              <h3>🌐 Network I/O (Bytes/sec)</h3>
+              <div className="current-value">
+                <span className="value-inline-small">↓ {metrics.container.network.rx_delta_per_sec.toFixed(2)} B/s</span>
+                <span className="value-inline-small">↑ {metrics.container.network.tx_delta_per_sec.toFixed(2)} B/s</span>
+                <span className="label-inline">Total: RX {metrics.container.network.rx_mb} MB | TX {metrics.container.network.tx_mb} MB</span>
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={networkHistory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                  <XAxis dataKey="time" stroke="#666" />
+                  <YAxis stroke="#666" />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e0e0e0' }}
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="rx" 
+                    stroke="#4caf50" 
+                    strokeWidth={2}
+                    dot={false}
+                    name="RX (↓)"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="tx" 
+                    stroke="#ff9800" 
+                    strokeWidth={2}
+                    dot={false}
+                    name="TX (↑)"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="card chart-card">
+              <h3>💿 Block I/O (Bytes/sec)</h3>
+              <div className="current-value">
+                <span className="value-inline-small">Read: {metrics.container.block_io.read_delta_per_sec.toFixed(2)} B/s</span>
+                <span className="value-inline-small">Write: {metrics.container.block_io.write_delta_per_sec.toFixed(2)} B/s</span>
+                <span className="label-inline">Total: Read {metrics.container.block_io.read_mb} MB | Write {metrics.container.block_io.write_mb} MB</span>
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={diskHistory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                  <XAxis dataKey="time" stroke="#666" />
+                  <YAxis stroke="#666" />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e0e0e0' }}
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="read" 
+                    stroke="#2196f3" 
+                    strokeWidth={2}
+                    dot={false}
+                    name="Read"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="write" 
+                    stroke="#f44336" 
+                    strokeWidth={2}
+                    dot={false}
+                    name="Write"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
 
             <div className="card metric-card">
-              <h3>Memory Usage</h3>
-              <div className="metric-value">
-                <span className="value">{metrics.memory.percent.toFixed(1)}%</span>
-              </div>
-              <div className="metric-details">
-                <p>Used: {formatBytes(metrics.memory.used)}</p>
-                <p>Total: {formatBytes(metrics.memory.total)}</p>
-              </div>
-            </div>
-
-            <div className="card metric-card">
-              <h3>API Statistics</h3>
+              <h3>📊 API Statistics</h3>
               <div className="metric-value">
                 <span className="value">{metrics.api.total_requests}</span>
                 <span className="label">Total Requests</span>
@@ -172,52 +287,6 @@ function App() {
             </div>
           </>
         )}
-
-        {/* CPU Chart */}
-        <div className="card chart-card">
-          <h3>CPU Usage Over Time</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={cpuHistory}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="time" stroke="#ccc" />
-              <YAxis stroke="#ccc" domain={[0, 100]} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1e1e2e', border: '1px solid #444' }}
-              />
-              <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="cpu" 
-                stroke="#82ca9d" 
-                strokeWidth={2}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Memory Chart */}
-        <div className="card chart-card">
-          <h3>Memory Usage Over Time</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={memoryHistory}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="time" stroke="#ccc" />
-              <YAxis stroke="#ccc" domain={[0, 100]} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1e1e2e', border: '1px solid #444' }}
-              />
-              <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="memory" 
-                stroke="#8884d8" 
-                strokeWidth={2}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
 
         {/* Request History Table */}
         <div className="card table-card">
