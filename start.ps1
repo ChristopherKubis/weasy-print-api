@@ -6,15 +6,15 @@ Write-Host "=================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Check if config.yml exists
-if (-not (Test-Path "config.yml")) {
-    Write-Host "❌ Error: config.yml not found!" -ForegroundColor Red
+if (-not (Test-Path "backend/config.yml")) {
+    Write-Host "❌ Error: backend/config.yml not found!" -ForegroundColor Red
     Write-Host "Please create config.yml with resource limits." -ForegroundColor Yellow
     exit 1
 }
 
 # Generate docker-compose.yml from config.yml
 Write-Host "📝 Generating docker-compose.yml from config.yml..." -ForegroundColor Yellow
-python load_docker_config.py
+python backend/load_docker_config.py
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Failed to generate docker-compose.yml" -ForegroundColor Red

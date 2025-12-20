@@ -16,6 +16,9 @@ ENV/
 *.swo
 *~
 
+# Docker generated file
+docker-compose.yml
+
 # Distribution / packaging
 .Python
 build/

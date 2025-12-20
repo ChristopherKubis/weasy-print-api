@@ -2,12 +2,12 @@ version: '3.8'
 
 services:
   weasyprint-api:
-    build: .
+    build: ./backend
     container_name: weasyprint-api
     ports:
       - "8000:8000"
     volumes:
-      - ./config.yml:/app/config.yml:ro
+      - ./backend/config.yml:/app/config.yml:ro
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped

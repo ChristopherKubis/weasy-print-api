@@ -3,10 +3,12 @@
 Script to load config.yml and generate docker-compose.yml with resource limits
 """
 import yaml
+import os
 
 
 def load_config():
-    with open("config.yml", "r") as f:
+    config_path = os.path.join(os.path.dirname(__file__), "config.yml")
+    with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
 
@@ -23,12 +25,12 @@ def generate_docker_compose(config):
 
 services:
   weasyprint-api:
-    build: .
+    build: ./backend
     container_name: weasyprint-api
     ports:
       - "8000:8000"
     volumes:
-      - ./config.yml:/app/config.yml:ro
+      - ./backend/config.yml:/app/config.yml:ro
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
@@ -92,6 +94,9 @@ networks:
 if __name__ == "__main__":
     try:
         config = load_config()
+        # Change to parent directory to write docker-compose.yml in root
+        import os
+        os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         generate_docker_compose(config)
     except Exception as e:
         print(f"❌ Error: {e}")

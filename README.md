@@ -59,7 +59,7 @@ docker-compose up --build
 
 ## Resource Configuration
 
-Edit `config.yml` to control CPU/memory limits and optimization settings:
+Edit `backend/config.yml` to control CPU/memory limits and optimization settings:
 
 ```yaml
 resources:
@@ -90,7 +90,7 @@ frontend:
     limit_cores: 1.0        # Frontend CPU limit
 ```
 
-After changing `config.yml`, restart with:
+After changing `backend/config.yml`, restart with:
 ```powershell
 .\start.ps1
 ```
@@ -235,10 +235,12 @@ Use the provided launch configuration to debug the application (F5).
 1. Install GTK3 Runtime: https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases
 2. Install dependencies:
 ```bash
+cd backend
 pip install -r requirements.txt
 ```
 3. Run locally:
 ```bash
+cd backend
 python main.py
 ```
 
@@ -246,18 +248,29 @@ python main.py
 
 ```
 weasy-print-api/
-├── config.yml              # Resource configuration (EDIT THIS!)
-├── load_docker_config.py   # Generates docker-compose.yml
-├── start.ps1              # Startup script (Windows)
-├── main.py                # FastAPI application
-├── requirements.txt       # Python dependencies
-├── Dockerfile             # API container definition
-├── docker-compose.yml     # Generated automatically
-├── .vscode/
-│   └── launch.json       # VS Code debug config
-└── frontend/
+├── start.ps1                    # Startup script (Windows)
+├── docker-compose.yml           # Generated automatically
+├── README.md                    # This file
+├── .gitignore
+├── backend/                     # API Backend
+│   ├── main.py                 # FastAPI application
+│   ├── config.yml              # Resource configuration (EDIT THIS!)
+│   ├── requirements.txt        # Python dependencies
+│   ├── Dockerfile              # API container definition
+│   ├── load_docker_config.py   # Generates docker-compose.yml
+│   ├── test_optimizations.ps1  # Performance tests
+│   ├── CHANGELOG.md            # Version history
+│   ├── OPTIMIZATIONS.md        # Optimization guide
+│   ├── OPTIMIZATION_SUMMARY.txt
+│   └── README.md               # Backend documentation
+└── frontend/                    # React Monitoring Dashboard
+    ├── Dockerfile
+    ├── package.json
     ├── src/
-    │   ├── App.js        # React monitoring dashboard
+    │   ├── App.js              # Main dashboard component
+    │   └── index.js
+    └── public/
+        └── index.html
     │   └── App.css       # Dashboard styles
     ├── Dockerfile        # Frontend container
     └── package.json      # Node dependencies
