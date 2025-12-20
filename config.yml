@@ -11,6 +11,15 @@ resources:
 app:
   websocket_update_interval: 5  # seconds
   request_history_max: 20
+
+# Optimization settings
+optimization:
+  cache_enabled: true
+  cache_max_size: 100  # Maximum number of PDFs to cache
+  cache_ttl_seconds: 3600  # Cache time-to-live (1 hour)
+  max_html_size_mb: 10  # Maximum HTML input size
+  conversion_timeout_seconds: 30  # Timeout for PDF conversion
+  rate_limit_per_minute: 60  # Maximum requests per minute per client
   
 # Frontend resources
 frontend:
